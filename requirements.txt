@@ -1,0 +1,11 @@
+# Operaciones matriciales y matemáticas (Motor del entorno)
+numpy>=1.24.0
+
+# Redes Neuronales y Aprendizaje Profundo (El Cerebro - Baseline de Zafrany)
+tensorflow>=2.13.0
+
+# Generación de gráficas y métricas de evaluación
+matplotlib>=3.7.0
+
+# Opcional: Si el Integrante 1 decide renderizar el juego con una ventana visual en lugar de consola
+# pygame>=2.5.0

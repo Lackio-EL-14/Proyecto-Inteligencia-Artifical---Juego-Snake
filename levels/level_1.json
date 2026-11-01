@@ -1,0 +1,11 @@
+{
+    "level_id": 1,
+    "grid_size": [10, 10],
+    "start_position": [5, 5],
+    "start_length": 3,
+    "apples_to_win": 5,
+    "obstacles": [
+        [2, 2], [2, 3], [2, 4],
+        [7, 7], [7, 8]
+    ]
+}
