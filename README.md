@@ -35,8 +35,8 @@ El código está diseñado bajo el Principio de Responsabilidad Única (SRP), se
     source venv/bin/activate
     ```
 
-##### Y acto seguido instalar las dependencias: 
-    ```bash
+Y acto seguido instalar las dependencias:
+    ```bash   
     pip install -r requirements.txt
     ```
 
