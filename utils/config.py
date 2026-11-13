@@ -11,7 +11,7 @@ LEVEL_PATHS = [
     "levels/level_4.json",
 ]
 MODELS_DIR = "models"
-WEIGHTS_FILE = "models/dqn_snake_weights.h5"
+WEIGHTS_FILE = "models/dqn_snake.weights.h5"
 PLOTS_DIR = "plots"
 
 # --- Agente y red neuronal ---
@@ -33,3 +33,4 @@ EPSILON_DECAY = 0.995   # Tasa de decaimiento por episodio
 TARGET_WIN_RATE = 0.90          # Win rate necesario para pasar de nivel
 WINDOW_SIZE = 100               # Ventana de episodios para medir el win rate
 MAX_EPISODES_PER_STAGE = 5000   # Límite de episodios por nivel (evita bucles infinitos)
+MAX_STEPS_PER_EPISODE = 500     # Límite de pasos por episodio (evita partidas que no terminan)
