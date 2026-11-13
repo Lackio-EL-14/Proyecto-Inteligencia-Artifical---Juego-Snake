@@ -6,12 +6,38 @@ from core.movements import UP, RIGHT, DOWN, LEFT, get_next_position
 
 class SnakeEnv:
     def __init__(self, level_config_path):
-        # Cargar configuración del JSON
+        # Configuración del JSON
         with open(level_config_path, 'r') as f:
             self.config = json.load(f)
             
         self.grid_size = self.config['grid_size']
+        print(self.grid_size)
+        if len(self.grid_size) != 2 or not isinstance(self.grid_size, list):
+            raise ValueError("El campo de 'grid_size' debe ser una lista con los valores [filas, columnas]")
+        
+        if any(type(size) != int for size in self.grid_size):
+            raise ValueError("El campo de 'grid_size debe tener dos numeros enteros en el formato [filas, columnas]")
+        
+        self.grid_size = tuple(self.grid_size)
+        
         self.start_position = self.config['start_position']
+        
+        if not isinstance(self.start_position, list) or len(self.start_position) != 2: 
+            raise ValueError("El campo de 'start_position' debe ser una lista con los valores [filas, columnas]")
+        
+        if any(type(position) != int for position in self.start_position):
+            raise ValueError("El campo de 'start_position' debe tener valores de tipo 'int'")
+        
+        row, col = self.start_position
+        
+        grid_row, grid_col = self.grid_size
+        
+        if not(0 <= row < grid_row or 0 <= col < grid_col):
+            raise ValueError(f"""Los valores de 'start_position' se encuentran fuera del tablero 
+                             'start_position': {self.start_position}
+                             'tamaño del tablero: {self.grid_size}
+                             """)
+        
         self.start_length = self.config.get('start_length', 2) # Por defecto 2 bloques
         self.apples_to_win = self.config['apples_to_win']
         # Si get() devuelve None, el operador 'or' usará la lista vacía []
