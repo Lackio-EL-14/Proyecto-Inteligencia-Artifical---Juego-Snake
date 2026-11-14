@@ -36,7 +36,7 @@ def train_by_stage(agent, memory, env_class, level_paths=LEVEL_PATHS,
         print(f"Iniciando Entrenamiento: ETAPA {stage_idx + 1} ({level_path})")
         print(f"{'='*40}")
 
-        env = env_class(level_path)
+        env = env_class(level_path, max_steps=MAX_STEPS_PER_EPISODE)
 
         # Historial para evaluar cuándo cambiar de nivel y para las gráficas
         win_history = deque(maxlen=WINDOW_SIZE)
@@ -47,23 +47,22 @@ def train_by_stage(agent, memory, env_class, level_paths=LEVEL_PATHS,
 
         while episodes_in_stage < MAX_EPISODES_PER_STAGE:
             episodes_in_stage += 1
-            state = env.reset()
-            done = False
+            state, _ = env.reset()
+            episode_done = False
             total_reward = 0
-            steps = 0
             info = {}
 
-            while not done:
+            while not episode_done:
                 # 1. El agente decide su acción (Exploración vs Explotación)
                 action = agent.act(state, epsilon)
 
                 # 2. El entorno ejecuta la acción y devuelve el nuevo estado físico
-                next_state, reward, done, info = env.step(action)
+                next_state, reward, terminated, truncated, info = env.step(action)
+                episode_done = terminated or truncated
                 total_reward += reward
-                steps += 1
 
                 # 3. Guardar la memoria para romper la correlación secuencial
-                memory.remember(state, action, reward, next_state, done)
+                memory.remember(state, action, reward, next_state, terminated)
                 state = next_state
 
                 # 4. Entrenar la Red Neuronal con un lote aleatorio si hay suficientes memorias
@@ -81,11 +80,6 @@ def train_by_stage(agent, memory, env_class, level_paths=LEVEL_PATHS,
                             targets[i, actions[i]] = rewards[i] + gamma * np.amax(q_next[i])
 
                     agent.model.train_on_batch(states, targets)
-
-                # 5. Cortar partidas que no terminan (la serpiente da vueltas sin comer)
-                if not done and steps >= MAX_STEPS_PER_EPISODE:
-                    info = {"reason": "timeout"}
-                    break
 
             # Reducir la exploración poco a poco después de cada episodio
             if epsilon > EPSILON_MIN:
