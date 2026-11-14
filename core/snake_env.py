@@ -89,14 +89,14 @@ class SnakeEnv:
         row, col = self.start_position
         if col - self.start_length + 1 < 0:
             raise ValueError(
-                "La serpiente inicial no cabe en el tablero mirando hacia la derecha."
+                "La serpiente inicial no cabe en el tablero mirando en direccion la derecha."
             )
 
         initial_body = {(row, col - index) for index in range(self.start_length)}
         overlap = initial_body & self.obstacles
         if overlap:
             raise ValueError(
-                f"La serpiente inicial se superpone con obstáculos: {sorted(overlap)}."
+                f"La serpiente inicial se superpone con los obstáculos que se encuentran {sorted(overlap)}."
             )
 
     def reset(self, *, seed=None, options=None):
@@ -105,7 +105,7 @@ class SnakeEnv:
                 raise ValueError("'seed' debe ser un entero o None.")
             self.np_random = np.random.default_rng(seed)
         if options is not None and not isinstance(options, dict):
-            raise ValueError("'options' debe ser un diccionario o None.")
+            raise ValueError("'options' debe ser de un tipo de dato diccionario o None.")
 
         self.apples_eaten = 0
         self.done = False
@@ -118,7 +118,7 @@ class SnakeEnv:
         ]
 
         if not self._spawn_apple():
-            raise ValueError("No hay una casilla libre para generar la manzana inicial.")
+            raise ValueError("No existe una casilla libre para colocar la manzana inicial.")
 
         info = {
             "level_id": self.config.get("level_id"),
@@ -128,13 +128,13 @@ class SnakeEnv:
 
     def step(self, action):
         if self.done:
-            raise RuntimeError("El episodio ya terminó. Llama a reset().")
+            raise RuntimeError("El episodio ya terminó, se debe hacer una restauracion con reset().")
         if (
             not isinstance(action, (int, np.integer))
             or isinstance(action, (bool, np.bool_))
             or action not in (UP, RIGHT, DOWN, LEFT)
         ):
-            raise ValueError("'action' debe ser UP, RIGHT, DOWN o LEFT.")
+            raise ValueError("'action' debe ser un movimiento valido como UP, RIGHT, DOWN o LEFT.")
         action = int(action)
 
         if len(self.snake_body) > 1 and action == (self.direction + 2) % 4:

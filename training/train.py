@@ -15,11 +15,12 @@ from utils.plotting import plot_learning_curve
 def train_by_stage(agent, memory, env_class, level_paths=LEVEL_PATHS,
                    batch_size=BATCH_SIZE, gamma=GAMMA):
     """
-    Entrenamiento Curricular por Etapas.
-    El agente debe dominar un nivel (alcanzar un win rate alto) para pasar al siguiente.
-    Si no lo logra en MAX_EPISODES_PER_STAGE episodios, se avisa y se pasa al siguiente.
+    El entrenamiento por Etapas.
+    El agente debe dominar un nivel que significa tener un win rate alto para pasar al siguiente.
+    Si no lo logra en una cantidad maxima de episodios marcado por MAX_EPISODES_PER_STAGE episodios,
+    se avisa y se pasa al siguiente caso.
 
-    Args:
+    Argumentos:
         agent: Instancia de DQNAgent (Red Neuronal Feed-Forward).
         memory: Instancia de ExperienceReplay.
         env_class: Clase base del entorno (SnakeEnv).
@@ -27,10 +28,10 @@ def train_by_stage(agent, memory, env_class, level_paths=LEVEL_PATHS,
         batch_size (int): Tamaño del lote para el entrenamiento.
         gamma (float): Factor de descuento para la Ecuación de Bellman.
     """
-    # Epsilon (tasa de exploración) global que decrece conforme el agente aprende
+    # Constante epsilon global que decrece conforme el agente comienza a aprender
     epsilon = EPSILON_START
 
-    # Entrenar nivel por nivel (Curriculum Learning)
+    # Entrenamiento nivel por nivel
     for stage_idx, level_path in enumerate(level_paths):
         print(f"\n{'='*40}")
         print(f"Iniciando Entrenamiento: ETAPA {stage_idx + 1} ({level_path})")
@@ -38,7 +39,7 @@ def train_by_stage(agent, memory, env_class, level_paths=LEVEL_PATHS,
 
         env = env_class(level_path, max_steps=MAX_STEPS_PER_EPISODE)
 
-        # Historial para evaluar cuándo cambiar de nivel y para las gráficas
+        # Un historial para evaluar cuándo cambiar de nivel y el uso de las gráficas
         win_history = deque(maxlen=WINDOW_SIZE)
         rewards_history = []
         win_rate_history = []
@@ -53,19 +54,19 @@ def train_by_stage(agent, memory, env_class, level_paths=LEVEL_PATHS,
             info = {}
 
             while not episode_done:
-                # 1. El agente decide su acción (Exploración vs Explotación)
+                #El agente decide su acción (Exploración vs Explotación)
                 action = agent.act(state, epsilon)
 
-                # 2. El entorno ejecuta la acción y devuelve el nuevo estado físico
+                #El entorno ejecuta la acción y devuelve el nuevo estado físico
                 next_state, reward, terminated, truncated, info = env.step(action)
                 episode_done = terminated or truncated
                 total_reward += reward
 
-                # 3. Guardar la memoria para romper la correlación secuencial
+                #Se debe guardar la memoria para romper la correlación secuencial
                 memory.remember(state, action, reward, next_state, terminated)
                 state = next_state
 
-                # 4. Entrenar la Red Neuronal con un lote aleatorio si hay suficientes memorias
+                # Comienzo del entrenamiento de la Red Neuronal con un lote aleatorio si existen suficientes memorias
                 if len(memory) > batch_size:
                     states, actions, rewards, next_states, dones = memory.sample_batch(batch_size)
 
@@ -85,7 +86,7 @@ def train_by_stage(agent, memory, env_class, level_paths=LEVEL_PATHS,
             if epsilon > EPSILON_MIN:
                 epsilon *= EPSILON_DECAY
 
-            # Registrar si el episodio terminó en victoria (1) o derrota (0)
+            # Registrar si el episodio terminó en victoria o derrota definidos como 0 o 1 respectivamente
             win_history.append(1 if info.get("reason") == "win" else 0)
             current_win_rate = sum(win_history) / len(win_history)
 
@@ -96,7 +97,7 @@ def train_by_stage(agent, memory, env_class, level_paths=LEVEL_PATHS,
             if episodes_in_stage % 10 == 0:
                 print(f"Etapa {stage_idx + 1} | Episodio {episodes_in_stage} | Epsilon: {epsilon:.3f} | Reward: {total_reward:.2f} | Win Rate: {current_win_rate:.2f}")
 
-            # Condición de victoria de la etapa
+            # La condición de victoria de la etapa
             if len(win_history) == WINDOW_SIZE and current_win_rate >= TARGET_WIN_RATE:
                 print(f"¡Etapa {stage_idx + 1} superada en {episodes_in_stage} episodios!")
                 stage_passed = True
@@ -106,7 +107,7 @@ def train_by_stage(agent, memory, env_class, level_paths=LEVEL_PATHS,
             print(f"Etapa {stage_idx + 1} NO superada tras {episodes_in_stage} episodios "
                   f"(win rate final: {current_win_rate:.2f}). Se continúa con la siguiente.")
 
-        # Gráfica de rendimiento del nivel
+        # Una gráfica de rendimiento del nivel
         plot_learning_curve(rewards_history, win_rate_history, stage_idx + 1)
 
     print("\n¡Entrenamiento Curricular completado!")
