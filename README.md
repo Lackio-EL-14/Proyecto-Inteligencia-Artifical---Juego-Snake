@@ -43,3 +43,13 @@ Y acto seguido instalar las dependencias:
 ## USO 
 
 **python main.py**
+
+## Interfaz del entorno
+
+`SnakeEnv` utiliza una interfaz de aprendizaje por refuerzo con retornos estilo Gymnasium, sin requerir instalar Gymnasium.
+
+`reset(seed=None, options=None)` inicia un episodio y devuelve `(observation, info)`. `observation` es un vector `float32` de 11 características: peligros adelante/a la derecha/a la izquierda; dirección arriba/derecha/abajo/izquierda; y posición relativa de la manzana arriba/derecha/abajo/izquierda. `info` incluye el identificador del nivel y el contador de manzanas.
+
+`step(action)` recibe una acción (`UP=0`, `RIGHT=1`, `DOWN=2`, `LEFT=3`) y devuelve `(observation, reward, terminated, truncated, info)`. `terminated` indica una victoria o colisión. `truncated` indica que se alcanzó el límite de pasos configurado. `info["reason"]` identifica el resultado del paso o el motivo de fin.
+
+El límite de pasos se pasa desde `training/train.py` a `SnakeEnv`. Al guardar una transición truncada, el replay buffer conserva `terminated` como máscara terminal para el cálculo de Bellman; el ciclo del episodio termina con `terminated or truncated`.
