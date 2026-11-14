@@ -17,20 +17,17 @@ class SnakeEnv:
         self.start_position = self._validate_position(
             self.config.get("start_position"), "start_position", within_grid=True
         )
-        self.start_length = self.config.get("start_length", 2)
-        self.apples_to_win = self.config.get("apples_to_win")
+        self.start_length = self._validate_positive_int(
+            self.config.get("start_length", 2), "start_length"
+        )
+        self.apples_to_win = self._validate_positive_int(
+            self.config.get("apples_to_win"), "apples_to_win"
+        )
         self.obstacles = self._validate_obstacles(self.config.get("obstacles"))
 
-        if type(self.start_length) is not int or self.start_length <= 0:
-            raise ValueError("'start_length' debe ser un entero positivo.")
-
-        if type(self.apples_to_win) is not int or self.apples_to_win <= 0:
-            raise ValueError("'apples_to_win' debe ser un entero positivo.")
-
-        if max_steps is not None and (type(max_steps) is not int or max_steps <= 0):
-            raise ValueError("'max_steps' debe ser None o un entero positivo.")
-
-        self.max_steps = max_steps
+        self.max_steps = self._validate_positive_int(
+            max_steps, "max_steps", allow_none=True
+        )
         self._validate_initial_snake()
 
         available_cells = self.grid_size[0] * self.grid_size[1]
@@ -51,9 +48,19 @@ class SnakeEnv:
     def _validate_grid_size(self, grid_size):
         if not isinstance(grid_size, list) or len(grid_size) != 2:
             raise ValueError("'grid_size' debe ser una lista [filas, columnas].")
-        if any(type(size) is not int or size <= 0 for size in grid_size):
-            raise ValueError("'grid_size' debe contener dos enteros positivos.")
-        return tuple(grid_size)
+        return tuple(
+            self._validate_positive_int(size, f"grid_size[{index}]")
+            for index, size in enumerate(grid_size)
+        )
+
+    def _validate_positive_int(self, value, field_name, allow_none=False):
+        if allow_none and value is None:
+            return None
+        if type(value) is not int or value <= 0:
+            if allow_none:
+                raise ValueError(f"'{field_name}' debe ser None o un entero positivo.")
+            raise ValueError(f"'{field_name}' debe ser un entero positivo.")
+        return value
 
     def _validate_position(self, position, field_name, within_grid=False):
         if not isinstance(position, list) or len(position) != 2:
