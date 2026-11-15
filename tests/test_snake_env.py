@@ -6,21 +6,24 @@ from pathlib import Path
 import numpy as np
 
 from core.snake_env import SnakeEnv
-from core.movements import LEFT, RIGHT, UP
+from core.movements import DOWN, LEFT, RIGHT, UP
+from core.rewards import RewardSpec
+from utils.config import STATE_SIZE
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+SHAPING_SPEC = RewardSpec(apple=1.0, death=-1.0, step=-0.01, shaping_gamma=1.0)
 
 
 class SnakeEnvTests(unittest.TestCase):
-    def make_env(self, config, max_steps=None):
+    def make_env(self, config, max_steps=None, hunger_factor=None):
         temporary_file = tempfile.NamedTemporaryFile(
             mode="w", suffix=".json", encoding="utf-8", delete=False
         )
         with temporary_file:
             json.dump(config, temporary_file)
         self.addCleanup(Path(temporary_file.name).unlink, missing_ok=True)
-        return SnakeEnv(temporary_file.name, max_steps=max_steps)
+        return SnakeEnv(temporary_file.name, max_steps=max_steps, reward_spec=SHAPING_SPEC, hunger_factor=hunger_factor)
 
     def base_config(self):
         return {
@@ -40,7 +43,7 @@ class SnakeEnvTests(unittest.TestCase):
             with self.subTest(level=level_path.name):
                 env = SnakeEnv(level_path)
                 observation, info = env.reset(seed=13)
-                self.assertEqual(observation.shape, (11,))
+                self.assertEqual(observation.shape, (STATE_SIZE,))
                 self.assertEqual(observation.dtype, np.float32)
                 self.assertEqual(info["level_id"], env.config["level_id"])
 
@@ -92,7 +95,7 @@ class SnakeEnvTests(unittest.TestCase):
 
         observation, reward, terminated, truncated, info = env.step(UP)
 
-        self.assertEqual(observation.shape, (11,))
+        self.assertEqual(observation.shape, (STATE_SIZE,))
         self.assertEqual(reward, -1.0)
         self.assertTrue(terminated)
         self.assertFalse(truncated)
@@ -155,6 +158,90 @@ class SnakeEnvTests(unittest.TestCase):
         self.assertTrue(truncated)
         self.assertEqual(info["reason"], "time_limit")
         self.assertTrue(env.done)
+
+    def test_observation_keeps_legacy_features_first_and_adds_spatial_sensors(self):
+        env = self.make_env(self.base_config())
+        observation, _ = env.reset(seed=3)
+        env.apple_pos = np.array([3, 5])
+        observation = env.observe()
+
+        np.testing.assert_array_equal(observation[3:7], [0, 1, 0, 0])
+        np.testing.assert_array_equal(observation[7:11], [0, 1, 0, 0])
+        self.assertAlmostEqual(float(observation[11]), 1 / 36, places=6)
+        self.assertEqual(float(observation[13]), 1.0)
+        self.assertTrue(np.all((observation >= 0.0) & (observation <= 1.0)))
+
+    def test_detour_along_real_path_is_rewarded_even_if_manhattan_grows(self):
+        config = self.base_config()
+        config["grid_size"] = [3, 5]
+        config["start_position"] = [0, 1]
+        config["obstacles"] = [[0, 2], [1, 2]]
+        env = self.make_env(config)
+        env.reset(seed=1)
+        env.apple_pos = np.array([0, 3])
+        env.potential = env._potential(env._spatial_context())
+
+        _, reward, terminated, _, info = env.step(DOWN)
+
+        self.assertFalse(terminated)
+        self.assertEqual(info["reason"], "moved")
+        self.assertGreater(reward, 0.0)
+
+    def test_moving_away_from_apple_is_penalized(self):
+        env = self.make_env(self.base_config())
+        env.reset(seed=1)
+        env.apple_pos = np.array([3, 0])
+        env.snake_body = [np.array([3, 3]), np.array([3, 4])]
+        env.direction = UP
+        env.potential = env._potential(env._spatial_context())
+
+        _, reward, _, _, _ = env.step(UP)
+
+        self.assertLess(reward, 0.0)
+
+    def test_full_loop_without_eating_has_negative_total_reward(self):
+        env = self.make_env(self.base_config())
+        env.reset(seed=1)
+        env.snake_body = [np.array([2, 2])]
+        env.direction = RIGHT
+        env.apple_pos = np.array([5, 5])
+        env.potential = env._potential(env._spatial_context())
+
+        total = sum(env.step(action)[1] for action in (RIGHT, DOWN, LEFT, UP))
+
+        self.assertAlmostEqual(total, 4 * SHAPING_SPEC.step)
+
+    def test_hunger_limit_truncates_with_starvation_reason(self):
+        env = self.make_env(self.base_config(), hunger_factor=2.5 / 36)
+        env.reset(seed=1)
+        env.apple_pos = np.array([0, 0])
+
+        _, _, first_terminated, first_truncated, _ = env.step(DOWN)
+        _, _, terminated, truncated, info = env.step(DOWN)
+
+        self.assertFalse(first_terminated or first_truncated)
+        self.assertFalse(terminated)
+        self.assertTrue(truncated)
+        self.assertEqual(info["reason"], "starvation")
+        self.assertTrue(env.done)
+
+    def test_eating_resets_hunger_counter(self):
+        env = self.make_env(self.base_config(), hunger_factor=2.5 / 36)
+        env.reset(seed=1)
+        env.apple_pos = np.array([0, 0])
+        env.step(DOWN)
+        env.apple_pos = np.array([5, 3])
+
+        _, reward, _, truncated, info = env.step(DOWN)
+
+        self.assertEqual(reward, 1.0)
+        self.assertFalse(truncated)
+        self.assertEqual(env.steps_since_apple, 0)
+        self.assertEqual(info["reason"], "moved")
+
+    def test_rejects_invalid_hunger_factor(self):
+        with self.assertRaisesRegex(ValueError, "hunger_factor"):
+            self.make_env(self.base_config(), hunger_factor=0)
 
     def test_step_after_episode_end_raises(self):
         config = self.base_config()

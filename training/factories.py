@@ -18,6 +18,7 @@ from utils.config import (
     EVAL_SEED,
     GAMMA,
     GRADIENT_CLIPNORM,
+    HUNGER_FACTOR,
     HIDDEN_UNITS,
     HUBER_DELTA,
     LEARNING_RATE,
@@ -73,7 +74,7 @@ def build_memory(seed: int) -> ExperienceReplay:
 
 
 def make_environment(level_path: str, max_steps: int) -> SnakeEnv:
-    return SnakeEnv(level_path, max_steps=max_steps)
+    return SnakeEnv(level_path, max_steps=max_steps, hunger_factor=HUNGER_FACTOR)
 
 
 def build_training_spec(run_dir: str, seed: int) -> TrainingSpec:
