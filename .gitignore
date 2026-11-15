@@ -4,3 +4,7 @@ __pycache__/
 venv/
 models/
 plots/
+
+# Salidas de entrenamiento y benchmark
+runs/
+metrics/

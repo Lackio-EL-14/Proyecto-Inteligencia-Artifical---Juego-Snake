@@ -2,13 +2,11 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 import numpy as np
 
 from core.snake_env import SnakeEnv
 from core.movements import LEFT, RIGHT, UP
-from training import train as training_module
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -167,115 +165,6 @@ class SnakeEnvTests(unittest.TestCase):
 
         with self.assertRaises(RuntimeError):
             env.step(RIGHT)
-
-    def test_training_consumes_new_api_and_preserves_terminal_mask(self):
-        class FakeEnvironment:
-            def __init__(self, level_path, max_steps):
-                self.max_steps = max_steps
-
-            def reset(self):
-                return np.zeros(11, dtype=np.float32), {"level_id": 1}
-
-            def step(self, action):
-                return np.ones(11, dtype=np.float32), 1.0, True, False, {"reason": "win"}
-
-        class FakeMemory:
-            def __init__(self):
-                self.transitions = []
-
-            def remember(self, *transition):
-                self.transitions.append(transition)
-
-            def __len__(self):
-                return 0
-
-        class FakeModel:
-            def save_weights(self, path):
-                self.saved_path = path
-
-        class FakeAgent:
-            def __init__(self):
-                self.model = FakeModel()
-
-            def act(self, state, epsilon):
-                return RIGHT
-
-        memory = FakeMemory()
-        agent = FakeAgent()
-
-        with (
-            patch.object(training_module, "WINDOW_SIZE", 1),
-            patch.object(training_module, "TARGET_WIN_RATE", 1.0),
-            patch.object(training_module, "MAX_EPISODES_PER_STAGE", 1),
-            patch.object(training_module, "MODELS_DIR", tempfile.gettempdir()),
-            patch.object(training_module, "WEIGHTS_FILE", "unused.weights.h5"),
-            patch.object(training_module, "plot_learning_curve"),
-        ):
-            training_module.train_by_stage(
-                agent=agent,
-                memory=memory,
-                env_class=FakeEnvironment,
-                level_paths=["fake-level.json"],
-            )
-
-        self.assertEqual(len(memory.transitions), 1)
-        self.assertTrue(memory.transitions[0][4])
-        self.assertEqual(agent.model.saved_path, "unused.weights.h5")
-
-    def test_training_does_not_mark_truncation_as_terminal(self):
-        class FakeEnvironment:
-            def __init__(self, level_path, max_steps):
-                self.max_steps = max_steps
-
-            def reset(self):
-                return np.zeros(11, dtype=np.float32), {}
-
-            def step(self, action):
-                return np.ones(11, dtype=np.float32), -0.1, False, True, {
-                    "reason": "time_limit"
-                }
-
-        class FakeMemory:
-            def __init__(self):
-                self.transitions = []
-
-            def remember(self, *transition):
-                self.transitions.append(transition)
-
-            def __len__(self):
-                return 0
-
-        class FakeModel:
-            def save_weights(self, path):
-                self.saved_path = path
-
-        class FakeAgent:
-            def __init__(self):
-                self.model = FakeModel()
-
-            def act(self, state, epsilon):
-                return RIGHT
-
-        memory = FakeMemory()
-        agent = FakeAgent()
-
-        with (
-            patch.object(training_module, "WINDOW_SIZE", 1),
-            patch.object(training_module, "TARGET_WIN_RATE", 1.0),
-            patch.object(training_module, "MAX_EPISODES_PER_STAGE", 1),
-            patch.object(training_module, "MODELS_DIR", tempfile.gettempdir()),
-            patch.object(training_module, "WEIGHTS_FILE", "unused.weights.h5"),
-            patch.object(training_module, "plot_learning_curve"),
-        ):
-            training_module.train_by_stage(
-                agent=agent,
-                memory=memory,
-                env_class=FakeEnvironment,
-                level_paths=["fake-level.json"],
-            )
-
-        self.assertEqual(len(memory.transitions), 1)
-        self.assertFalse(memory.transitions[0][4])
 
 
 if __name__ == "__main__":

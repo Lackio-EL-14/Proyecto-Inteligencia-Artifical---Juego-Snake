@@ -1,36 +1,46 @@
-# utils/config.py
-# Configuración global del proyecto.
-# Todo valor que se quiera cambiar para experimentar se modifica aquí,
-# no dentro de train.py ni de main.py.
-
-# --- Rutas ---
-LEVEL_PATHS = [
+LEVEL_PATHS = (
     "levels/level_1.json",
     "levels/level_2.json",
     "levels/level_3.json",
     "levels/level_4.json",
-]
-MODELS_DIR = "models"
-WEIGHTS_FILE = "models/dqn_snake.weights.h5"
-PLOTS_DIR = "plots"
+)
+RUNS_DIR = "runs"
+RUN_NAME_FORMAT = "%Y%m%d-%H%M%S"
 
-# --- Agente y red neuronal ---
-STATE_SIZE = 11         # Vector de estado (peligros, dirección, manzana)
-ACTION_SIZE = 4         # UP, RIGHT, DOWN, LEFT
-LEARNING_RATE = 0.001
+SEED = 42
+FORCE_CPU = True
+USE_XLA = False
 
-# --- Q-Learning ---
-GAMMA = 0.95            # Factor de descuento para la Ecuación de Bellman
-BATCH_SIZE = 64         # Tamaño del lote para el entrenamiento
-MAX_MEMORY = 10000      # Límite del Replay Buffer
+STATE_SIZE = 11
+ACTION_SIZE = 4
+HIDDEN_UNITS = (128, 128)
+LEARNING_RATE = 5e-4
+GRADIENT_CLIPNORM = 10.0
+HUBER_DELTA = 1.0
+TARGET_RULE = "double"
+GAMMA = 0.95
 
-# --- Exploración (Epsilon-Greedy) ---
-EPSILON_START = 1.0     # 100% de exploración al inicio
-EPSILON_MIN = 0.05      # Nunca explorar menos del 5%
-EPSILON_DECAY = 0.995   # Tasa de decaimiento por episodio
+MAX_MEMORY = 50_000
+PRIORITIZED_REPLAY = True
+BATCH_SIZE = 64
+WARMUP_STEPS = 1_000
+TRAIN_EVERY = 4
+TARGET_UPDATE_EVERY = 500
 
-# --- Currículo ---
-TARGET_WIN_RATE = 0.90          # Win rate necesario para pasar de nivel
-WINDOW_SIZE = 100               # Ventana de episodios para medir el win rate
-MAX_EPISODES_PER_STAGE = 5000   # Límite de episodios por nivel (evita bucles infinitos)
-MAX_STEPS_PER_EPISODE = 500     # Límite de pasos por episodio (evita partidas que no terminan)
+EPSILON_START = 1.0
+EPSILON_STAGE_START = 0.5
+EPSILON_MIN = 0.05
+EPSILON_DECAY = 0.995
+
+EVAL_EVERY = 50
+EVAL_EPISODES = 50
+EVAL_SEED = 10_000
+REHEARSAL_PROB = 0.2
+
+TARGET_WIN_RATE = 0.90
+WINDOW_SIZE = 100
+MAX_EPISODES_PER_STAGE = 5000
+MAX_STEPS_PER_EPISODE = 500
+
+PROGRESS_EVERY = 10
+PLAY_DELAY_SECONDS = 0.1
