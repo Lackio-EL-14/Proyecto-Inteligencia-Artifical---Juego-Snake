@@ -1,11 +1,11 @@
-# Agente Inteligente para Snake Modificado (DQN)
+# Agente Inteligente para Snake Modificado (Double DQN)
 
-Proyecto final de curso para la asignatura **SIS-252 Inteligencia Artificial** (UCB Sede Cochabamba). 
+Proyecto final de curso para la asignatura **SIS-252 Inteligencia Artificial** (UCB Sede Cochabamba).
 
-## Objetivo del Proyecto
-Desarrollar un agente inteligente capaz de navegar y sobrevivir de forma autónoma en una variación progresiva del juego "Snake". A diferencia de los entornos estáticos, el agente debe equilibrar la recolección de objetivos (manzanas) con la evasión de obstáculos dinámicos (su propio cuerpo en crecimiento) a lo largo de múltiples niveles de dificultad.
+## Objetivo
+Un agente que aprende a jugar una variante de Snake por niveles (tableros de 8×8 a 12×12, con obstáculos fijos y varias manzanas) mediante **Double Deep Q-Learning** con una red neuronal feed-forward en Keras. El *baseline* teórico es Zafrany, *Deep reinforcement learning for maze solving*.
 
-El sistema de toma de decisiones está basado en **Aprendizaje por Refuerzo (Deep Q-Learning)** utilizando Redes Neuronales Feedforward, tomando como *baseline* la arquitectura de resolución de laberintos de Zafrany y expandiéndola para entornos dinámicos y penalizaciones complejas.
+Esta primera entrega usa una física simplificada: la serpiente **no crece** al comer. El crecimiento se activa sin cambiar código (`SNAKE_GROWS` en `config.py`, o el campo `"snake_grows"` en el JSON de un nivel).
 
 ## Equipo de Desarrollo
 * Javier Antezana Vallejos
@@ -13,43 +13,54 @@ El sistema de toma de decisiones está basado en **Aprendizaje por Refuerzo (Dee
 * Mateo Wilson Quispe Aylas
 * Isabel Hidalgo Avila
 
-## Estructura del Repositorio
-El código está diseñado bajo el Principio de Responsabilidad Única (SRP), separando el entorno físico de la inteligencia artificial:
+## Estructura
 
-* `core/`: Motor del juego y física de la matriz (`snake_env.py`), y el Replay Buffer (`experience.py`).
-* `agent/`: Definición de la arquitectura de la Red Neuronal con TensorFlow/Keras (`dqn_model.py`).
-* `training/`: Bucle principal de entrenamiento y función de recompensas (`train.py`).
-* `levels/`: Archivos JSON que definen la topología, obstáculos y metas de cada nivel.
-* `utils/`: Configuraciones globales e hiperparámetros (`config.py`) y generación de gráficas de rendimiento (`plotting.py`).
+| Archivo | Contenido |
+|---|---|
+| `config.py` | Todos los hiperparámetros, las recompensas y las semillas. |
+| `snake_env.py` | Física del juego: movimiento, choques, manzanas, victoria, hambre y recompensa. |
+| `state.py` | Sensores del agente: el vector de estado de 7 valores. |
+| `baselines.py` | Prueba de suficiencia del estado: política heurística y aleatoria, sin red. |
+| `agent.py` | Red Keras, política ε-greedy, memoria de repetición y paso de entrenamiento Double DQN. |
+| `train.py` | Bucle de entrenamiento con los 4 niveles mezclados; métricas en CSV. |
+| `evaluate.py` | Evaluación voraz (ε = 0) con semillas fijas, 100 episodios por nivel. |
+| `plots.py` | Gráficas para el informe. |
+| `viewer.py` | Visor pygame para ver jugar al agente y analizar sus fallos. |
+| `tests/` | Pruebas del entorno, el estado, la memoria y el paso de entrenamiento. |
+| `levels/` | Definición de los 4 niveles. |
 
-## Instalación y Configuración
+## Diseño en breve
+- **Estado (7 valores):** para cada acción posible (seguir, girar a la derecha, girar a la izquierda), si choca (`blocked`) y si acerca a la manzana por el camino real calculado con BFS (`closer`); además, la distancia BFS normalizada a la manzana.
+- **Acciones:** 3 relativas a la dirección actual.
+- **Recompensa:** +1 por manzana, −1 por choque, −0.01 por paso. Si pasan filas × columnas pasos sin comer, el episodio se corta (truncamiento, no estado terminal).
+- **Red:** `Dense(64, relu) → Dense(64, relu) → Dense(3, linear)`, Adam (lr 5e-4), pérdida Huber.
+- **Double DQN:** la red online elige la mejor acción en el estado siguiente y la red objetivo (copiada cada 250 pasos) da su valor: `y = r + γ·(1−done)·Q_target(s', argmax_a Q_online(s', a))`, con γ = 0.95.
+- **Memoria de repetición** uniforme de 20 000 transiciones, mini-batch de 64.
 
-1. **Clonar el repositorio:**
-   ```bash
-   git clone <URL_DEL_REPOSITORIO>
-   cd snake_ai_project
+## Uso
 
-2. **Se Recomienda crear un entorno virtual**
-    ```bash
-    python3 -m venv venv
-    source venv/bin/activate
-    ```
+```bash
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
 
-Y acto seguido instalar las dependencias:
-    ```bash   
-    pip install -r requirements.txt
-    ```
+python -m unittest discover -s tests -t .
+python baselines.py
+python train.py --run-name completa
+python evaluate.py --weights runs/completa/final.weights.h5
+python plots.py --run runs/completa
+python viewer.py --level 4 --policy agent --weights runs/completa/final.weights.h5
+```
 
-## USO 
+Los resultados se guardan en `runs/`, que git ignora.
 
-**python main.py**
+**Teclas del visor:** espacio pausa · `n` un paso · `+`/`-` velocidad · `r` siguiente episodio · `esc` salir. Con `--failures` reproduce solo los episodios perdidos en la última evaluación.
 
-## Interfaz del entorno
+## Resultados (sin crecimiento, 100 episodios por nivel, ε = 0, semillas 10000–10099)
 
-`SnakeEnv` utiliza una interfaz de aprendizaje por refuerzo con retornos estilo Gymnasium, sin requerir instalar Gymnasium.
+| Política | Nivel 1 | Nivel 2 | Nivel 3 | Nivel 4 |
+|---|---|---|---|---|
+| Aleatoria | 15.5 % | 0 % | 0 % | 0 % |
+| Heurística (solo el estado, sin red) | 100 % | 100 % | 100 % | 100 % |
+| **Double DQN** | **100 %** | **100 %** | **100 %** | **100 %** |
 
-`reset(seed=None, options=None)` inicia un episodio y devuelve `(observation, info)`. `observation` es un vector `float32` de 11 características: peligros adelante/a la derecha/a la izquierda; dirección arriba/derecha/abajo/izquierda; y posición relativa de la manzana arriba/derecha/abajo/izquierda. `info` incluye el identificador del nivel y el contador de manzanas.
-
-`step(action)` recibe una acción (`UP=0`, `RIGHT=1`, `DOWN=2`, `LEFT=3`) y devuelve `(observation, reward, terminated, truncated, info)`. `terminated` indica una victoria o colisión. `truncated` indica que se alcanzó el límite de pasos configurado. `info["reason"]` identifica el resultado del paso o el motivo de fin.
-
-El límite de pasos se pasa desde `training/train.py` a `SnakeEnv`. Al guardar una transición truncada, el replay buffer conserva `terminated` como máscara terminal para el cálculo de Bellman; el ciclo del episodio termina con `terminated or truncated`.
+Las dos primeras filas son de `baselines.py` (200 episodios por nivel). El entrenamiento completo (1500 episodios) tarda unos 3 minutos en CPU.
